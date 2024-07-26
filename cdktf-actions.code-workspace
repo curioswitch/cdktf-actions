@@ -23,9 +23,6 @@
     "prettier.requireConfig": true,
     "jest.jestCommandLine": "yarn run test",
     "jest.runMode": { "type": "on-demand", "deferred": true },
-    "files.associations": {
-      "*.yaml": "github-actions-workflow",
-    },
     // Multiple language syntax mysteriously doesn't reliably work.
     "[github-actions-workflow]": {
       "editor.formatOnSave": true,
