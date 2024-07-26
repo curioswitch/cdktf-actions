@@ -22,10 +22,6 @@ on:
         type: string
         description: Service account to execute as. Defaults to terraform-viewer@<GCP project ID>.iam.gserviceaccount.com.
         default: ''
-      gcp_project_number:
-        type: string
-        description: GCP project number to run in.
-        required: true
 
 jobs:
   plan:
