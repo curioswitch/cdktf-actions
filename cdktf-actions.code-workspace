@@ -19,8 +19,6 @@
     },
     "editor.tabSize": 2,
     "eslint.workingDirectories": [{ "mode": "auto" }],
-    "prettier.configPath": ".prettierrc.yml",
-    "prettier.requireConfig": true,
     "jest.jestCommandLine": "yarn run test",
     "jest.runMode": { "type": "on-demand", "deferred": true },
     // Multiple language syntax mysteriously doesn't reliably work.
