@@ -2,6 +2,14 @@ name: Terraform Apply
 on:
   workflow_call:
     inputs:
+      gcp_project_id:
+        type: string
+        description: GCP project ID to run in, i.e. startsWith(github.ref_name, 'release/') && 'myproject-prod' || 'myproject-dev'
+        required: true
+      gcp_project_number:
+        type: string
+        description: GCP project number to run in, i.e. startsWith(github.ref_name, 'release/') && '840011577241' || '720364425367'
+        required: true
       stack:
         type: string
         description: The stack to run terraform apply on. Defaults to dev for main branch and prod for release/ branch.
@@ -14,14 +22,6 @@ on:
         type: string
         description: GitHub environment to run terraform apply. Defaults to dev for main branch and prod for release/ branch.
         default: ${{ startsWith(github.ref_name, 'release/') && 'prod' || 'dev'}}
-      gcp_project_id:
-        type: string
-        description: GCP project ID to run in, i.e. startsWith(github.ref_name, 'release/') && 'myproject-prod' || 'myproject-dev'
-        required: true
-      gcp_project_number:
-        type: string
-        description: GCP project number to run in, i.e. startsWith(github.ref_name, 'release/') && '840011577241' || '720364425367'
-        required: true
       workload_identity_pool:
         type: string
         description: Workload Identity Pool to use for authentication Defaults to github.
@@ -30,10 +30,14 @@ on:
         type: string
         description: Workload Identity Provider within the pool. Defaults to github.
         default: github
-      service_account:
+      service_account_plan:
         type: string
-        description: Service account to execute as. Defaults to terraform-viewer@<GCP project ID>.iam.gserviceaccount.com for plan and terraform-admin@<GCP project ID>.iam.gserviceaccount.com for apply.
-        default: ""
+        description: Service account to execute as for plan. Defaults to terraform-viewer@<GCP project ID>.iam.gserviceaccount.com.
+        default: "" # Can't reference other inputs here
+      service_account_apply:
+        type: string
+        description: Service account to execute as for apply. Defaults to terraform-admin@<GCP project ID>.iam.gserviceaccount.com.
+        default: "" # Can't reference other inputs here
 
 env:
   DIR: cdktf.out/stacks/${{ inputs.stack }}
@@ -63,7 +67,7 @@ jobs:
         with:
           workload_identity_provider: projects/${{ inputs.gcp_project_number }}/locations/global/workloadIdentityPools/${{ inputs.workload_identity_pool }}/providers/${{ inputs.workload_identity_provider }}
           project_id: ${{ inputs.gcp_project_id }}
-          service_account: ${{ inputs.service_account || format('terraform-viewer@{0}.iam.gserviceaccount.com', inputs.gcp_project_id) }}
+          service_account: ${{ inputs.service_account_plan || format('terraform-viewer@{0}.iam.gserviceaccount.com', inputs.gcp_project_id) }}
 
       - uses: google-github-actions/setup-gcloud@v2
 
@@ -103,7 +107,7 @@ jobs:
         with:
           workload_identity_provider: projects/${{ inputs.gcp_project_number }}/locations/global/workloadIdentityPools/github/providers/curioswitch
           project_id: ${{ inputs.gcp_project_id }}
-          service_account: terraform-admin@${{ inputs.gcp_project_id }}.iam.gserviceaccount.com
+          service_account: ${{ inputs.service_account_apply || format('terraform-admin@{0}.iam.gserviceaccount.com', inputs.gcp_project_id) }}
 
       - uses: google-github-actions/setup-gcloud@v2
 

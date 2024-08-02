@@ -2,14 +2,6 @@ name: Terraform Plan
 on:
   workflow_call:
     inputs:
-      stack:
-        type: string
-        description: The stack to run terraform plan on. Defaults to dev.
-        default: dev
-      env:
-        type: string
-        description: GitHub environment to run terraform plan. Defaults to dev-viewer.
-        default: dev-viewer
       gcp_project_id:
         type: string
         description: GCP project ID to run in. This is the string ID.
@@ -18,6 +10,14 @@ on:
         type: string
         description: GCP project number to run in. This is the numeric ID.
         required: true
+      stack:
+        type: string
+        description: The stack to run terraform plan on. Defaults to dev.
+        default: dev
+      env:
+        type: string
+        description: GitHub environment to run terraform plan. Defaults to dev-viewer.
+        default: dev-viewer
       workload_identity_pool:
         type: string
         description: Workload Identity Pool to use for authentication Defaults to github.
@@ -29,7 +29,7 @@ on:
       service_account:
         type: string
         description: Service account to execute as. Defaults to terraform-viewer@<GCP project ID>.iam.gserviceaccount.com.
-        default: ""
+        default: "" # Can't reference other inputs here
 
 jobs:
   plan:
