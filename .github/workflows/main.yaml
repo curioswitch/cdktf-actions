@@ -41,6 +41,7 @@ on:
 
 env:
   DIR: cdktf.out/stacks/${{ inputs.stack }}
+  WORKLOAD_IDENTITY_PROVIDER: projects/${{ inputs.gcp_project_number }}/locations/global/workloadIdentityPools/${{ inputs.workload_identity_pool }}/providers/${{ inputs.workload_identity_provider }}
 
 jobs:
   plan:
@@ -64,7 +65,7 @@ jobs:
 
       - uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: projects/${{ inputs.gcp_project_number }}/locations/global/workloadIdentityPools/${{ inputs.workload_identity_pool }}/providers/${{ inputs.workload_identity_provider }}
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
           project_id: ${{ inputs.gcp_project_id }}
           service_account: ${{ inputs.service_account_plan || format('terraform-viewer@{0}.iam.gserviceaccount.com', inputs.gcp_project_id) }}
 
@@ -106,7 +107,7 @@ jobs:
 
       - uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: projects/${{ inputs.gcp_project_number }}/locations/global/workloadIdentityPools/github/providers/curioswitch
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
           project_id: ${{ inputs.gcp_project_id }}
           service_account: ${{ inputs.service_account_apply || format('terraform-admin@{0}.iam.gserviceaccount.com', inputs.gcp_project_id) }}
 
