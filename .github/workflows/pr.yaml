@@ -29,7 +29,7 @@ on:
       service_account:
         type: string
         description: Service account to execute as. Defaults to terraform-viewer@<GCP project ID>.iam.gserviceaccount.com.
-        default: terraform-viewer@${{ inputs.gcp_project_id }}.iam.gserviceaccount.com
+        default: ""
 
 jobs:
   plan:

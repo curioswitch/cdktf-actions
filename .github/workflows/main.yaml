@@ -1,0 +1,122 @@
+name: Terraform Apply
+on:
+  workflow_call:
+    inputs:
+      stack:
+        type: string
+        description: The stack to run terraform apply on. Defaults to dev for main branch and prod for release/ branch.
+        default: ${{ startsWith(github.ref_name, 'release/') && 'prod' || 'dev'}}
+      env_plan:
+        type: string
+        description: GitHub environment to run terraform plan. Defaults to dev-viewer for main branch and prod-viewer for release/ branch.
+        default: ${{ startsWith(github.ref_name, 'release/') && 'prod-viewer' || 'dev-viewer'}}
+      env_apply:
+        type: string
+        description: GitHub environment to run terraform apply. Defaults to dev for main branch and prod for release/ branch.
+        default: ${{ startsWith(github.ref_name, 'release/') && 'prod' || 'dev'}}
+      gcp_project_id:
+        type: string
+        description: GCP project ID to run in, i.e. startsWith(github.ref_name, 'release/') && 'myproject-prod' || 'myproject-dev'
+        required: true
+      gcp_project_number:
+        type: string
+        description: GCP project number to run in, i.e. startsWith(github.ref_name, 'release/') && '840011577241' || '720364425367'
+        required: true
+      workload_identity_pool:
+        type: string
+        description: Workload Identity Pool to use for authentication Defaults to github.
+        default: github
+      workload_identity_provider:
+        type: string
+        description: Workload Identity Provider within the pool. Defaults to github.
+        default: github
+      service_account:
+        type: string
+        description: Service account to execute as. Defaults to terraform-viewer@<GCP project ID>.iam.gserviceaccount.com for plan and terraform-admin@<GCP project ID>.iam.gserviceaccount.com for apply.
+        default: ""
+
+env:
+  DIR: cdktf.out/stacks/${{ inputs.stack }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+
+    environment: ${{ inputs.env_plan }}
+
+    outputs:
+      has-diffs: ${{ steps.save.outputs.has-diffs }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/${{ inputs.gcp_project_number }}/locations/global/workloadIdentityPools/${{ inputs.workload_identity_pool }}/providers/${{ inputs.workload_identity_provider }}
+          project_id: ${{ inputs.gcp_project_id }}
+          service_account: ${{ inputs.service_account || format('terraform-viewer@{0}.iam.gserviceaccount.com', inputs.gcp_project_id) }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - run: pnpm install
+
+      - run: pnpm run synth
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ${{ env.DIR }}
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -no-color -detailed-exitcode -out=tfplan
+        working-directory: ${{ env.DIR }}
+
+      - name: Save Plan
+        id: save
+        if: steps.plan.outputs.exitcode == 2
+        run: |
+          gsutil cp cdk.tf.json tfplan gs://${{ inputs.gcp_project_id }}-tfstate/plans/${{ github.sha }}
+          echo "has-diffs=true" >> "$GITHUB_OUTPUT"
+        working-directory: ${{ env.DIR }}
+
+  apply:
+    runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.has-diffs == 'true'
+
+    environment: ${{ inputs.env_apply }}
+
+    steps:
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/${{ inputs.gcp_project_number }}/locations/global/workloadIdentityPools/github/providers/curioswitch
+          project_id: ${{ inputs.gcp_project_id }}
+          service_account: terraform-admin@${{ inputs.gcp_project_id }}.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Load Plan
+        run: gsutil cp -R gs://${{ inputs.gcp_project_id }}-tfstate/plans/${{ github.sha }} .
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ${{ github.sha }}
+
+      - name: Terraform Apply
+        run: terraform apply -no-color tfplan
+        working-directory: ${{ github.sha }}
