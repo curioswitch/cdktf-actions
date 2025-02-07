@@ -1,4 +1,4 @@
-name: Terraform Apply
+name: Apply
 on:
   workflow_call:
     inputs:
@@ -12,15 +12,15 @@ on:
         required: true
       stack:
         type: string
-        description: The stack to run terraform apply on. Defaults to dev for main branch and prod for release/ branch.
+        description: The stack to run apply on. Defaults to dev for main branch and prod for release/ branch.
         default: ${{ startsWith(github.ref_name, 'release/') && 'prod' || 'dev'}}
       env_plan:
         type: string
-        description: GitHub environment to run terraform plan. Defaults to dev-viewer for main branch and prod-viewer for release/ branch.
+        description: GitHub environment to run plan. Defaults to dev-viewer for main branch and prod-viewer for release/ branch.
         default: ${{ startsWith(github.ref_name, 'release/') && 'prod-viewer' || 'dev-viewer'}}
       env_apply:
         type: string
-        description: GitHub environment to run terraform apply. Defaults to dev for main branch and prod for release/ branch.
+        description: GitHub environment to run apply. Defaults to dev for main branch and prod for release/ branch.
         default: ${{ startsWith(github.ref_name, 'release/') && 'prod' || 'dev'}}
       workload_identity_pool:
         type: string
@@ -55,13 +55,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version-file: package.json
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          bun-version-file: package.json
 
       - uses: google-github-actions/auth@v2
         with:
@@ -71,20 +67,19 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - uses: opentofu/setup-opentofu@v1
 
-      - run: pnpm install
+      - run: bun install
 
-      - run: pnpm run synth
+      - run: bun run cdktf synth
 
-      - name: Terraform Init
-        run: terraform init
+      - name: Init
+        run: tofu init
         working-directory: ${{ env.DIR }}
 
-      - name: Terraform Plan
+      - name: Plan
         id: plan
-        run: terraform plan -no-color -detailed-exitcode -out=tfplan
+        run: tofu plan -no-color -detailed-exitcode -out=tfplan
         working-directory: ${{ env.DIR }}
 
       - name: Save Plan
@@ -113,16 +108,15 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - uses: opentofu/setup-opentofu@v1
 
       - name: Load Plan
         run: gsutil cp -R gs://${{ inputs.gcp_project_id }}-tfstate/plans/${{ github.sha }} .
 
-      - name: Terraform Init
-        run: terraform init
+      - name: Init
+        run: tofu init
         working-directory: ${{ github.sha }}
 
-      - name: Terraform Apply
-        run: terraform apply -no-color tfplan
+      - name: Apply
+        run: tofu apply -no-color tfplan
         working-directory: ${{ github.sha }}
