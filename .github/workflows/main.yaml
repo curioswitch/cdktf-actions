@@ -102,6 +102,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
@@ -111,6 +115,8 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
 
       - uses: opentofu/setup-opentofu@v1
+
+      - run: bun install
 
       - name: Load Plan
         run: gsutil cp -R gs://${{ inputs.gcp_project_id }}-tfstate/plans/${{ github.sha }} .
